@@ -31,6 +31,7 @@ class Ftg(commands.Bot):
 
     async def on_ready(self) -> None:
         print(f"READY payload on {self.user.name} - {self.user.id}")
+        await self.change_presence(activity=discord.Game(name='prefix: gn | https://github.com/Py-Ryan/ft.-Gunna'))
 
     async def on_message(self, message: discord.Message) -> None:
         ctx: Context = await self.get_context(message, cls=Context)
