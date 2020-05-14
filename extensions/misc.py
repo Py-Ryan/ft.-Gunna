@@ -19,6 +19,7 @@ class MiscCog(commands.Cog):
         embed: Embed = Embed(title="Info", colour=ctx.__randcolor__())
         embed.add_field(name="Total Guild Count:", value=len(self.client.guilds), inline=True)
         embed.add_field(name="Total Member Count:", value=member_count)
+        embed.description = "[We're open source](https://github.com/Py-Ryan/ft.-Gunna)"
         embed.set_footer(text=f"Bot Developer: {str(owner.owner)} ({owner.owner.id})")
         await ctx.send(embed=embed, reaction="\U00002705")
 
