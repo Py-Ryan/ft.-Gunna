@@ -23,6 +23,8 @@ class DevCog(commands.Cog):
 
     @commands.command()
     @commands.is_owner()
+    @commands.max_concurrency(1, per=commands.BucketType.guild)
+    @commands.cooldown(1, per=2, type=commands.BucketType.guild)
     async def shutdown(self, ctx: Context) -> None:
         await ctx.send(desc=f"You sure, {ctx.author}?")
         resp = await self.client.wait_for("message", check=lambda msg: msg.author == ctx.author)
@@ -34,6 +36,8 @@ class DevCog(commands.Cog):
 
     @commands.command()
     @commands.is_owner()
+    @commands.max_concurrency(1, per=commands.BucketType.guild)
+    @commands.cooldown(1, per=2, type=commands.BucketType.guild)
     async def reload(self, ctx: Context, ext_name: str) -> None:
         try:
             self.client.reload_extension(f"extensions.{ext_name}")
