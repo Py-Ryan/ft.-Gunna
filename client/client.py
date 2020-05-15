@@ -7,9 +7,17 @@ from ftg.extensions.utils.context import Context
 
 
 class Ftg(commands.Bot):
+
     def __init__(self, **options: Dict[str, Any]) -> None:
         super().__init__(command_prefix="gn ", **options)
         self.__extensions__: List[str] = list()
+        self.error_messages: Dict[str, str] = {
+            "NotOwner": "",
+            "CommandOnCooldown": "",
+            "BadArgument": "Incorrect argument(s): {}",
+            "BadUnionArgument": "I can't convert {} to {}",
+            "CommandNotFound": "ss"
+        }
 
     def run(self, token: str, extensions: List[str], **options: Dict[str, Any]) -> None:
         if extensions:
@@ -38,6 +46,9 @@ class Ftg(commands.Bot):
         await self.invoke(ctx)
 
     async def on_command_error(self, context: Context, exception: Any) -> None:
-        if not isinstance(exception, commands.CommandOnCooldown):
-            await context.message.add_reaction("\U0000274c")
-            raise exception
+        error_msg: str = self.error_messages.get(exception.__class__.__name__, None)
+        if error_msg:
+            if '{}' in error_msg:
+                error_msg = error_msg.format(*exception.param)
+            await context.send(desc=error_msg)
+        await context.message.add_reaction("\U0000274c")
