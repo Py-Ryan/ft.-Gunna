@@ -15,8 +15,7 @@ class Ftg(commands.Bot):
             "NotOwner": "",
             "CommandOnCooldown": "",
             "BadArgument": "Incorrect argument(s): {}",
-            "BadUnionArgument": "I can't convert {} to {}",
-            "CommandNotFound": "ss"
+            "BadUnionArgument": "I can't convert {} to {}"
         }
 
     def run(self, token: str, extensions: List[str], **options: Dict[str, Any]) -> None:
