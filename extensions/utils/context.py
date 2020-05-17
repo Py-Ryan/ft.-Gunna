@@ -41,7 +41,7 @@ class Context(commands.Context):
                 colour: discord.Colour = kwargs.pop("colour")
             except KeyError:
                 colour = self.__randcolor__()
-            msg = await super().send(embed=discord.Embed(description=f'**{desc}**', colour=colour), **kwargs)
+            msg = await super().send(embed=discord.Embed(description=f'**{desc}**', colour=colour, **kwargs))
         except KeyError:
             msg = await super().send(**kwargs)
 
