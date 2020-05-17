@@ -1,5 +1,6 @@
 import os
 import json
+import discord
 import logging
 import contextlib
 from ftg.client import client
@@ -38,5 +39,8 @@ if __name__ == "__main__":
         token = json.load(secret)["token"]
 
     with bind_logger():
-        client: Bot = client.Ftg()
+        client: Bot = client.Ftg(
+            ownerid=700091773695033505,
+            activity=discord.Game(name='prefix: gn | https://github.com/Py-Ryan/ft.-Gunna')
+        )
         client.run(token, os.listdir("extensions"))
