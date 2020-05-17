@@ -23,8 +23,7 @@ class MemberCog(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(kick_members=True)
     @commands.bot_has_permissions(kick_members=True)
-    @commands.max_concurrency(1, per=commands.BucketType.guild)
-    @commands.cooldown(1, per=2, type=commands.BucketType.guild)
+    @commands.cooldown(1, 2, commands.BucketType.guild)
     async def kick(self, ctx: Context, members: commands.Greedy[Member], *, reason: str = "None") -> None:
         """
         Kick a member from your guild.
@@ -45,22 +44,24 @@ class MemberCog(commands.Cog):
         embed.add_field(name="Reason:", value=reason, inline=False)
         embed.set_thumbnail(url=ctx.guild.icon_url)
 
-        curr_member: Optional[Member] = None
-        try:
-            for member in members:
-                curr_member = member
-                await ctx.guild.kick(curr_member, reason=f"Kicked By: {ctx.author}({ctx.author.id}) | Reason: {reason}")
-        except HTTPException:
-            await ctx.send(desc=f"I couldn't kick {curr_member}.", reaction="\U0000274c")
+        if members:
+            curr_member: Optional[Member] = None
+            try:
+                for member in members:
+                    curr_member = member
+                    await ctx.guild.kick(curr_member, reason=f"Kicked By: {ctx.author}({ctx.author.id}) | Reason: {reason}")
+            except HTTPException:
+                await ctx.send(desc=f"I couldn't kick {curr_member}.", reaction="\U0000274c")
+            else:
+                await ctx.send(desc="They're gone \U0001f44c", reaction="\U00002705")
         else:
-            await ctx.send(desc="They're gone \U0001f44c", reaction="\U00002705")
+            raise commands.BadArgument("No user(s) were provided to kick.")
 
     @commands.command()
     @commands.guild_only()
     @commands.has_permissions(ban_members=True)
     @commands.bot_has_permissions(ban_members=True)
-    @commands.max_concurrency(1, per=commands.BucketType.guild)
-    @commands.cooldown(1, per=2, type=commands.BucketType.guild)
+    @commands.cooldown(1, 2, commands.BucketType.guild)
     async def ban(self, ctx: Context, users: commands.Greedy[Union[Member, User, int]], *, rsn: str = "None") -> None:
         """
         Ban a member from your guild. Supports hackbanning if provided with an ID.

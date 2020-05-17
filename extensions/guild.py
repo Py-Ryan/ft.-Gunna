@@ -13,8 +13,7 @@ class GuildCog(commands.Cog):
     @commands.command()
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
-    @commands.max_concurrency(1, per=commands.BucketType.guild)
-    @commands.cooldown(1, per=2, type=commands.BucketType.guild)
+    @commands.cooldown(1, 2, commands.BucketType.guild)
     async def leave(self, ctx: Context) -> None:
         """
         Make the bot leave the guild.
