@@ -46,9 +46,9 @@ class Ftg(commands.Bot):
         super().run(token, **options)
 
     async def get_prefix_(self, bot: commands.Bot, message: discord.Message) -> Union[str, List[str]]:
-        if message.guild.id not in self.prefix_cache:
-            prefix: Optional[asyncpg.Record, str] = \
-                await self.db.fetchrow("SELECT (prefix) FROM guilds WHERE id=$1", message.guild.id)
+        prefix: Optional[asyncpg.Record, str] = \
+            await self.db.fetchrow("SELECT (prefix) FROM guilds WHERE id=$1", message.guild.id)
+        if message.guild.id not in self.prefix_cache or self.prefix_cache[message.guild.id] != prefix:
             try:
                 prefix = prefix["prefix"]
             except TypeError:
