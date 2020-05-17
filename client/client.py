@@ -1,22 +1,31 @@
 import os
+import json
 import discord
+import asyncpg
+import asyncio
 from discord.ext import commands
-from typing import Any, Dict, List
 from traceback import extract_stack
 from ftg.extensions.utils.context import Context
+from typing import Any, Dict, List, Union, Optional
 
 
 class Ftg(commands.Bot):
 
     def __init__(self, **options: Dict[str, Any]) -> None:
-        super().__init__(command_prefix="gn ", **options)
+        super().__init__(command_prefix=self.get_prefix_, **options)
+        self.app_info: Optional[discord.AppInfo] = None
+        self.prefix_cache: Dict[int, str] = dict()
         self.__extensions__: List[str] = list()
-        self.error_messages: Dict[str, str] = {
-            "NotOwner": "",
-            "CommandOnCooldown": "",
-            "BadArgument": "Incorrect argument(s): {}",
-            "BadUnionArgument": "I can't convert {} to {}"
-        }
+        self.__url__: List[str] = list()
+
+        with open("client/secret/secret.json") as secret:
+            json.load(secret, object_hook=lambda d_: self.__url__.extend(
+                [d_[key] for key in d_.keys() if key == 'url']
+            ))
+
+        self.db = asyncio.get_event_loop().run_until_complete(
+            asyncpg.create_pool(self.__url__[0], min_size=1, max_size=5)
+        )
 
     def run(self, token: str, extensions: List[str], **options: Dict[str, Any]) -> None:
         if extensions:
@@ -36,18 +45,36 @@ class Ftg(commands.Bot):
 
         super().run(token, **options)
 
+    async def get_prefix_(self, bot: commands.Bot, message: discord.Message) -> Union[str, List[str]]:
+        if message.guild.id not in self.prefix_cache:
+            prefix: Optional[asyncpg.Record, str] = \
+                await self.db.fetchrow("SELECT (prefix) FROM guilds WHERE id=$1", message.guild.id)
+            try:
+                prefix = prefix["prefix"]
+            except TypeError:
+                prefix = "gn "
+                await self.db.execute("INSERT INTO guilds (id, prefix) VALUES($1, $2)", message.guild.id, prefix)
+            finally:
+                self.prefix_cache[message.guild.id] = prefix
+
+        return commands.when_mentioned_or(self.prefix_cache[message.guild.id])(bot, message)
+
+    async def close(self) -> None:
+        await self.db.close()
+        await super().close()
+
     async def on_ready(self) -> None:
         print(f"READY payload on {self.user.name} - {self.user.id}")
-        await self.change_presence(activity=discord.Game(name='prefix: gn | https://github.com/Py-Ryan/ft.-Gunna'))
+
+        if not self.app_info:
+            self.app_info = await self.application_info()
 
     async def on_message(self, message: discord.Message) -> None:
-        ctx: Context = await self.get_context(message, cls=Context)
-        await self.invoke(ctx)
+        if self.is_ready():
+            ctx: Context = await self.get_context(message, cls=Context)
+            await self.invoke(ctx)
 
-    async def on_command_error(self, context: Context, exception: Any) -> None:
-        error_msg: str = self.error_messages.get(exception.__class__.__name__, None)
-        if error_msg:
-            if '{}' in error_msg:
-                error_msg = error_msg.format(*exception.param)
-            await context.send(desc=error_msg)
-        await context.message.add_reaction("\U0000274c")
+    async def on_command_error(self, context: Context, exception: commands.CommandError) -> None:
+        if not isinstance(exception, (commands.CommandNotFound, commands.CommandOnCooldown)):
+            await context.send(desc=str(exception))
+            await context.message.add_reaction("\U0000274c")
