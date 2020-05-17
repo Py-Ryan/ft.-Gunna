@@ -16,6 +16,7 @@ class MemberCog(commands.Cog):
     """
     Cog for commands that interact with members and users.
     """
+
     def __init__(self, client: commands.Bot) -> None:
         self.client: commands.Bot = client
 
@@ -40,7 +41,9 @@ class MemberCog(commands.Cog):
             The reason for the kick. Defaults to None.
         """
         embed: Embed = Embed(title="Kicked.", colour=ctx.__randcolor__())
-        embed.add_field(name="Kicked By:", value=f'{ctx.author} ({ctx.author.id})', inline=True)
+        embed.add_field(
+            name="Kicked By:", value=f"{ctx.author} ({ctx.author.id})", inline=True
+        )
         embed.add_field(name="Reason:", value=reason, inline=False)
         embed.set_thumbnail(url=ctx.guild.icon_url)
 
@@ -49,9 +52,14 @@ class MemberCog(commands.Cog):
             try:
                 for member in members:
                     curr_member = member
-                    await ctx.guild.kick(curr_member, reason=f"Kicked By: {ctx.author}({ctx.author.id}) | Reason: {reason}")
+                    await ctx.guild.kick(
+                        curr_member,
+                        reason=f"Kicked By: {ctx.author}({ctx.author.id}) | Reason: {reason}",
+                    )
             except HTTPException:
-                await ctx.send(desc=f"I couldn't kick {curr_member}.", reaction="\U0000274c")
+                await ctx.send(
+                    desc=f"I couldn't kick {curr_member}.", reaction="\U0000274c"
+                )
             else:
                 await ctx.send(desc="They're gone \U0001f44c", reaction="\U00002705")
         else:
@@ -87,7 +95,9 @@ class MemberCog(commands.Cog):
             users = Snowflake(id=users)
 
         embed: Embed = Embed(title="Banned.", colour=ctx.__randcolor__())
-        embed.add_field(name="Banned By:", value=f"{ctx.author} ({ctx.author.id})", inline=True)
+        embed.add_field(
+            name="Banned By:", value=f"{ctx.author} ({ctx.author.id})", inline=True
+        )
         embed.add_field(name="Reason:", value=rsn, inline=False)
         embed.set_thumbnail(url=ctx.guild.icon_url)
 
@@ -104,8 +114,8 @@ class MemberCog(commands.Cog):
                 curr_user = curr_user.id
 
             await ctx.send(
-                desc=f"I couldn\'t ban {str(curr_user)}. Either they don't exist or they're more powerful than me.",
-                reaction='\U0000274c'
+                desc=f"I couldn't ban {str(curr_user)}. Either they don't exist or they're more powerful than me.",
+                reaction="\U0000274c",
             )
         else:
             # An attempt to find external shared guilds with a Snowflake in order to send them a ban notification.
@@ -121,7 +131,7 @@ class MemberCog(commands.Cog):
                     except Forbidden:
                         pass
 
-            await ctx.send(desc=f"They're gone \U0001f44c", reaction='\U00002705')
+            await ctx.send(desc=f"They're gone \U0001f44c", reaction="\U00002705")
 
 
 def setup(client: commands.Bot) -> None:
