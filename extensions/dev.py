@@ -3,8 +3,9 @@ import discord
 import textwrap
 import warnings
 import contextlib
+
+from typing import Any, Dict
 from discord.ext import commands
-from typing import Any, Dict, List
 from ftg.extensions.utils.context import Context
 
 
