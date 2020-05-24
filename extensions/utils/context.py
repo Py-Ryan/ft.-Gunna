@@ -1,6 +1,7 @@
 import random
 import inspect
 import discord
+
 from discord.ext import commands
 from typing import Any, Dict, List, Optional
 
@@ -27,11 +28,11 @@ class Context(commands.Context):
 
         return random.choice(self.color_list)
 
-    async def send(self, **kwargs: Optional[Dict[str, Any]]) -> discord.Message:
+    async def send(self, **kwargs: Dict[str, Any]) -> discord.Message:
         msg: Optional[discord.Message] = None
 
         try:
-            await self.message.add_reaction(kwargs.pop('reaction'))
+            await self.message.add_reaction(kwargs.pop("reaction"))
         except KeyError:
             pass
 
@@ -41,7 +42,10 @@ class Context(commands.Context):
                 colour: discord.Colour = kwargs.pop("colour")
             except KeyError:
                 colour = self.__randcolor__()
-            msg = await super().send(embed=discord.Embed(description=f'**{desc}**', colour=colour, **kwargs))
+
+            msg = await super().send(
+                embed=discord.Embed(description=f"**{desc}**", colour=colour, **kwargs)
+            )
         except KeyError:
             msg = await super().send(**kwargs)
 
