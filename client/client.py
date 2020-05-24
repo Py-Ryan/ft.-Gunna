@@ -2,20 +2,27 @@ import os
 import json
 import discord
 import asyncpg
+import aiohttp
 import asyncio
+
 from discord.ext import commands
 from traceback import extract_stack
+from typing import Any, Dict, List, Union
 from ftg.extensions.utils.context import Context
-from typing import Any, Dict, List, Union, Optional
+
+import discord
+
+from discord.ext import commands
 
 
 class Ftg(commands.Bot):
+
     def __init__(self, **options: Dict[str, Any]) -> None:
         super().__init__(command_prefix=self.get_prefix_, **options)
-        self.app_info: Optional[discord.AppInfo] = None
-        self.prefix_cache: Dict[int, str] = dict()
-        self.__extensions__: List[str] = list()
-        self.__url__: List[str] = list()
+        self.session = aiohttp.ClientSession()
+        self.__cache__ = {"prefix": {}}
+        self.__url__ = list()
+        self.app_info = None
 
         with open("client/secret/secret.json") as secret:
             json.load(
@@ -32,52 +39,37 @@ class Ftg(commands.Bot):
     def run(self, token: str, extensions: List[str], **options: Dict[str, Any]) -> None:
         if extensions:
             for ext in extensions:
-                (root, ext) = os.path.splitext(ext)
+                (base, ext) = os.path.splitext(ext)
                 if ext == ".py":
-                    self.__extensions__.append(f"extensions.{root}")
-
-            for extension in self.__extensions__:
-                self.load_extension(extension)
-                print(f"Mounted extension: {extension[11:]}")
+                    self.load_extension(f"extensions.{base}")
+                    print(f"Mounted: {base}")
 
         elif not isinstance(extensions, list) or not extensions:
-            class_name: str = self.__class__.__name__
-            func_name: str = extract_stack(None, 2)[1][2]
+            class_name = self.__class__.__name__
+            func_name = extract_stack(None, 2)[1][2]
             raise RuntimeWarning(
                 f"No extensions were passed to {class_name}.{func_name}()"
             )
 
+        guild_entries: List[asyncpg.Record] = asyncio.get_event_loop().run_until_complete(
+            self.db.fetchrow("""SELECT (id, prefix) FROM guilds""")
+        )
+
+        if guild_entries:
+            for guild in guild_entries:
+                self.__cache__["prefix"][guild[0]] = guild[1]
+
         super().run(token, **options)
 
-    async def get_prefix_(
-        self, bot: commands.Bot, message: discord.Message
-    ) -> Union[str, List[str]]:
-        prefix: Optional[asyncpg.Record, Dict[str]] = await self.db.fetchrow(
-            """SELECT (prefix)
-                                      FROM guilds 
-                                      WHERE id=$1""",
-            message.guild.id,
-        ) or {"prefix": "gn "}
+    async def get_prefix_(self, bot: commands.Bot, message: discord.Message) -> Union[str, List[str]]:
+        if not self.__cache__["prefix"].get(message.guild.id):
+            self.__cache__["prefix"][message.guild.id] = "gn "
 
-        if (
-            message.guild.id not in self.prefix_cache
-            or self.prefix_cache[message.guild.id] != prefix["prefix"]
-        ):
-            await self.db.execute(
-                """INSERT INTO guilds (id, prefix) 
-                                     VALUES($1, $2)""",
-                message.guild.id,
-                prefix["prefix"],
-            )
-
-            self.prefix_cache[message.guild.id] = prefix["prefix"]
-
-        return commands.when_mentioned_or(self.prefix_cache[message.guild.id])(
-            bot, message
-        )
+        return commands.when_mentioned_or(self.__cache__["prefix"][message.guild.id])(bot, message)
 
     async def close(self) -> None:
         await self.db.close()
+        await self.session.close()
         await super().close()
 
     async def on_ready(self) -> None:
@@ -91,11 +83,38 @@ class Ftg(commands.Bot):
             ctx: Context = await self.get_context(message, cls=Context)
             await self.invoke(ctx)
 
-    async def on_command_error(
-        self, context: Context, exception: commands.CommandError
-    ) -> None:
-        if not isinstance(
-            exception, (commands.CommandNotFound, commands.CommandOnCooldown)
-        ):
+    async def on_guild_remove(self, guild: discord.Guild) -> None:
+        if self.is_ready():
+            await self.db.execute(
+                """
+                DELETE FROM guilds
+                WHERE id=$1
+                """,
+                guild.id
+            )
+
+    async def on_command(self, ctx: Context) -> None:
+        row = await self.db.fetchrow(
+            """
+            SELECT id
+            FROM guilds
+            WHERE id=$1
+            """,
+            ctx.guild.id
+        )
+
+        if not row:
+            await self.db.execute(
+                """
+                INSERT INTO guilds (id)
+                VALUES ($1)
+                """,
+                ctx.guild.id
+            )
+
+    async def on_command_error(self, context: Context, exception: commands.CommandError) -> None:
+        exception = getattr(exception, "original", exception)
+        if not isinstance(exception, (commands.CommandNotFound, commands.CommandOnCooldown)):
             await context.send(desc=str(exception))
             await context.message.add_reaction("\U0000274c")
+            raise exception
