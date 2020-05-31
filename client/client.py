@@ -1,42 +1,38 @@
 import os
 import json
-import discord
 import asyncpg
 import aiohttp
 import asyncio
 
 from discord.ext import commands
 from traceback import extract_stack
-from typing import Any, Dict, List, Union
 from ftg.extensions.utils.context import Context
-
-import discord
-
-from discord.ext import commands
 
 
 class Ftg(commands.Bot):
 
-    def __init__(self, **options: Dict[str, Any]) -> None:
+    __slots__ = ("session", "_cache", "_url", "app_info", "db")
+
+    def __init__(self, **options):
         super().__init__(command_prefix=self.get_prefix_, **options)
         self.session = aiohttp.ClientSession()
-        self.__cache__ = {"prefix": {}}
-        self.__url__ = list()
+        self._cache = {"prefix": {}}
         self.app_info = None
+        self._url = []
 
         with open("client/secret/secret.json") as secret:
             json.load(
                 secret,
-                object_hook=lambda d_: self.__url__.extend(
+                object_hook=lambda d_: self._url.extend(
                     [d_[key] for key in d_.keys() if key == "url"]
                 ),
             )
 
         self.db = asyncio.get_event_loop().run_until_complete(
-            asyncpg.create_pool(self.__url__[0], min_size=1, max_size=5)
+            asyncpg.create_pool(self._url[0], min_size=1, max_size=5)
         )
 
-    def run(self, token: str, extensions: List[str], **options: Dict[str, Any]) -> None:
+    def run(self, token, extensions, **options):
         if extensions:
             for ext in extensions:
                 (base, ext) = os.path.splitext(ext)
@@ -51,39 +47,41 @@ class Ftg(commands.Bot):
                 f"No extensions were passed to {class_name}.{func_name}()"
             )
 
-        guild_entries: List[asyncpg.Record] = asyncio.get_event_loop().run_until_complete(
-            self.db.fetchrow("""SELECT (id, prefix) FROM guilds""")
+        guild_entries = asyncio.get_event_loop().run_until_complete(
+            self.db.fetch("""SELECT (id, prefix) FROM guilds""")
         )
 
         if guild_entries:
             for guild in guild_entries:
-                self.__cache__["prefix"][guild[0]] = guild[1]
+                guild = guild["row"]
+                if guild[1]:
+                    self._cache["prefix"][guild[0]] = guild[1]
 
         super().run(token, **options)
 
-    async def get_prefix_(self, bot: commands.Bot, message: discord.Message) -> Union[str, List[str]]:
-        if not self.__cache__["prefix"].get(message.guild.id):
-            self.__cache__["prefix"][message.guild.id] = "gn "
+    async def get_prefix_(self, bot, message):
+        if not self._cache["prefix"].get(message.guild.id):
+            self._cache["prefix"][message.guild.id] = "gn "
 
-        return commands.when_mentioned_or(self.__cache__["prefix"][message.guild.id])(bot, message)
+        return commands.when_mentioned_or(self._cache["prefix"][message.guild.id])(bot, message)
 
-    async def close(self) -> None:
+    async def close(self):
         await self.db.close()
         await self.session.close()
         await super().close()
 
-    async def on_ready(self) -> None:
+    async def on_ready(self):
         print(f"READY payload on {self.user.name} - {self.user.id}")
 
         if not self.app_info:
             self.app_info = await self.application_info()
 
-    async def on_message(self, message: discord.Message) -> None:
+    async def on_message(self, message):
         if self.is_ready():
-            ctx: Context = await self.get_context(message, cls=Context)
+            ctx = await self.get_context(message, cls=Context)
             await self.invoke(ctx)
 
-    async def on_guild_remove(self, guild: discord.Guild) -> None:
+    async def on_guild_remove(self, guild):
         if self.is_ready():
             await self.db.execute(
                 """
@@ -93,7 +91,7 @@ class Ftg(commands.Bot):
                 guild.id
             )
 
-    async def on_command(self, ctx: Context) -> None:
+    async def on_command(self, ctx):
         row = await self.db.fetchrow(
             """
             SELECT id
@@ -112,9 +110,9 @@ class Ftg(commands.Bot):
                 ctx.guild.id
             )
 
-    async def on_command_error(self, context: Context, exception: commands.CommandError) -> None:
+    async def on_command_error(self, ctx, exception):
         exception = getattr(exception, "original", exception)
+
         if not isinstance(exception, (commands.CommandNotFound, commands.CommandOnCooldown)):
-            await context.send(desc=str(exception))
-            await context.message.add_reaction("\U0000274c")
-            raise exception
+            await ctx.send(desc=str(exception))
+            await ctx.message.add_reaction(ctx.reactions.get("x"))
