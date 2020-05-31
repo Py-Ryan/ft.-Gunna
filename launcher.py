@@ -3,12 +3,14 @@ import json
 import discord
 import logging
 import contextlib
+
 from ftg.client import client
 from discord.ext.commands import Bot
 
 
 @contextlib.contextmanager
 def bind_logger() -> None:
+    log = None
     try:
         logging.getLogger(__name__).setLevel(logging.INFO)
 
@@ -36,11 +38,17 @@ def bind_logger() -> None:
 
 if __name__ == "__main__":
     with open("client/secret/secret.json") as secret:
-        token = json.load(secret)["token"]
+        token = []
+        json.load(
+            secret,
+            object_hook=lambda d_: token.extend(
+                [d_[key] for key in d_.keys() if key == 'token']
+            )
+        )
 
     with bind_logger():
         client: Bot = client.Ftg(
-            ownerid=700091773695033505,
-            activity=discord.Game(name='prefix: gn | https://github.com/Py-Ryan/ft.-Gunna')
+            owner_id=700091773695033505,
+            activity=discord.Game(name='default prefix is just a mention with a space after.')
         )
-        client.run(token, os.listdir("extensions"))
+        client.run(token[0], os.listdir("extensions"))
