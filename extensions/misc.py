@@ -99,6 +99,6 @@ class MiscCog(commands.Cog):
                     await ctx.send(embed=embed, reaction=ctx.reactions.get("x"))
 
 
-def setup(client: commands.Bot) -> None:
+def setup(client):
     client.add_cog(MiscCog(client))
 
