@@ -35,7 +35,7 @@ class MiscCog(commands.Cog):
             colour=ctx.__randcolor__(),
             title="Binary Conversion",
             description=result,
-        ).set_footer(icon_url=ctx.author.avatar_url, text=f"Requested by {ctx.author}")
+        ).set_footer(icon_url=ctx.author.avatar_url_as(static_format='png'), text=f"Requested by {ctx.author}")
 
         length = len(result)
 
@@ -71,7 +71,7 @@ class MiscCog(commands.Cog):
             colour=ctx.__randcolor__(),
             title="Binary Conversion",
             description=result,
-        ).set_footer(icon_url=ctx.author.avatar_url, text=f"Requested by {ctx.author}")
+        ).set_footer(icon_url=ctx.author.avatar_url_as(static_format='png'), text=f"Requested by {ctx.author}")
 
         length = len(result)
 
