@@ -1,103 +1,104 @@
-import json
+import discord
 
 from discord.ext import commands
-from discord import User, File, Embed, Message
-from ftg.extensions.utils.context import Context
 
 
 class MiscCog(commands.Cog):
-    """
-    Cog for random, misc commands.
-    """
 
-    def __init__(self, client: commands.Bot) -> None:
-        self.client: commands.Bot = client
+    __slots__ = "client"
+
+    def __init__(self, client):
+        self.client = client
 
     @commands.command()
     @commands.cooldown(1, 2, commands.BucketType.guild)
-    async def info(self, ctx: Context) -> None:
-        owner: User = self.client.get_user(self.client.owner_id)
-        embed: Embed = Embed(title="Info", colour=ctx.__randcolor__())
-        embed.add_field(
-            name="Total Guild Count:", value=len(self.client.guilds), inline=True
+    async def info(self, ctx):
+        owner = self.client.get_user(self.client.owner_id)
+
+        embed = discord.Embed(
+            title="Info",
+            colour=ctx.__randcolor__(),
+            description="[Source Code](https://github.com/Py-Ryan/ft.-Gunna)"
         )
+        embed.add_field(name="Total Guild Count:", value=len(self.client.guilds), inline=True)
         embed.add_field(name="Total Member Count:", value=len(self.client.users))
-        embed.description = "[Source Code](https://github.com/Py-Ryan/ft.-Gunna)"
         embed.set_footer(text=f"Bot Developer: {str(owner)} ({owner.id})")
-        await ctx.send(embed=embed, reaction="\U00002705")
+
+        await ctx.send(embed=embed, reaction=ctx.reactions.get("check"))
 
     @commands.command()
     @commands.cooldown(1, 2, commands.BucketType.guild)
-    async def binify(self, ctx: Context, *, val: str) -> None:
-        res = int("".join(format(ord(c), 'b') for c in val))
+    async def binaryout(self, ctx, *, text):
+        result = " ".join([bin(ord(char))[2:].zfill(8) for char in text])
 
-        embed = Embed(
+        embed = discord.Embed(
             colour=ctx.__randcolor__(),
             title="Binary Conversion",
-        )
+            description=result,
+        ).set_footer(icon_url=ctx.author.avatar_url, text=f"Requested by {ctx.author}")
 
-        if len(str(res)) >= 2048:
-            async with self.client.session.post('https://hastebin.com/documents', data=res) as s:
-                h_code = json.loads(await s.text())["key"]
-                await ctx.send(
-                    title=f"https://hastebin.com/{h_code}",
-                    desc=f"Your request was very long. So the binary is in a haste, {ctx.author.display_name}.",
-                )
-        elif 500 <= len(str(res)) < 2048:
-            embed.description = \
-                f"**Here is your converted text, {ctx.author.display_name}:**\n{res}"
+        length = len(result)
 
-            await ctx.send(
-                desc=f"Long request, check your DMs, {ctx.author.display_name}.",
-                reaction="\U00002705",
-            )
-            await ctx.author.send(embed=embed)
+        if length <= 500:
+            await ctx.send(embed=embed, reaction=ctx.reactions.get("check"))
         else:
-            embed.description = \
-                f"**Here is your converted text, {ctx.author.display_name}:**\n{res}"
+            async with self.client.session.post("https://hastebin.com/documents", data=result) as res:
+                data = await res.json()
 
-            await ctx.send(embed=embed, reaction="\U00002705")
+                try:
+                    message = data["key"]
+                    embed.add_field(
+                        name="Hastebin Link:",
+                        value=f"https://hastebin.com/{message}",
+                        inline=True
+                    ).colour = ctx.__randcolor__()
+                    embed.description = None
+
+                    await ctx.send(embed=embed, reaction=ctx.reactions.get("check"))
+                except KeyError:
+                    message = data["message"]
+                    embed.title = "Failed to POST on hastebin."
+                    embed.description = message
+
+                    await ctx.send(embed=embed, reaction=ctx.reactions.get("x"))
 
     @commands.command()
     @commands.cooldown(1, 2, commands.BucketType.guild)
-    async def unbinify(self, ctx: Context, *, binary: str) -> None:
-        res = ""
+    async def binaryin(self, ctx, *, text):
+        result = ''.join([chr(int(byte, 2)) for byte in text.split()])
 
-        for i in range(0, len(binary), 7):
-            td = binary[i:i+7]
-            dd = int(td, 2)
-            res += chr(dd)
-
-        embed = Embed(
+        embed = discord.Embed(
             colour=ctx.__randcolor__(),
             title="Binary Conversion",
-        )
+            description=result,
+        ).set_footer(icon_url=ctx.author.avatar_url, text=f"Requested by {ctx.author}")
 
-        res_len = len(res)
-        if res_len <= 500:
-            embed.description = \
-                f"**Here is your converted text, {ctx.author.display_name}:**\n{res}"
+        length = len(result)
 
-            await ctx.send(
-                embed=embed
-            )
-        elif 2048 >= res_len > 500:
-            embed.description = \
-                f"**Here is your converted text, {ctx.author.display_name}:**\n{res}"
-
-            await ctx.send(
-                desc="Long request, I'll send it in your DMs."
-            )
-
-            await ctx.author.send(embed=embed)
+        if length <= 500:
+            await ctx.send(embed=embed, reaction=ctx.reactions.get("check"))
         else:
-            async with self.client.session.post("https://hastebin.com/documents", data=res) as s:
-                h_code = json.loads(await s.text())["key"]
-                embed.title = f"https://hastebin.com/{h_code}"
-                embed.description = "Very long request. I've uploaded it to hastebin, {ctx.author.display_name}"
+            async with self.client.session.post("https://hastebin.com/documents", data=result) as res:
+                data = await res.json()
 
-            await ctx.send(desc=embed)
+                try:
+                    message = data["key"]
+                    embed.add_field(
+                        name="Hastebin Link:",
+                        value=f"https://hastebin.com/{message}",
+                        inline=True
+                    ).colour = ctx.__randcolor__()
+                    embed.description = None
+
+                    await ctx.send(embed=embed, reaction=ctx.reactions.get("check"))
+                except KeyError:
+                    message = data["message"]
+                    embed.title = "Failed to POST on hastebin."
+                    embed.description = message
+
+                    await ctx.send(embed=embed, reaction=ctx.reactions.get("x"))
 
 
 def setup(client: commands.Bot) -> None:
     client.add_cog(MiscCog(client))
+

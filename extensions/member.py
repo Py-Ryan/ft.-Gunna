@@ -1,9 +1,7 @@
 import json
-import asyncpg
 
+from typing import Union
 from discord.ext import commands
-from typing import Dict, List, Union, Optional
-from ftg.extensions.utils.context import Context
 
 from discord import (
     User,
@@ -19,7 +17,9 @@ from discord import (
 
 class MemberCog(commands.Cog):
 
-    def __init__(self, client: commands.Bot) -> None:
+    __slots__ = "client"
+
+    def __init__(self, client):
         self.client = client
 
     @commands.command()
@@ -27,11 +27,9 @@ class MemberCog(commands.Cog):
     @commands.has_permissions(kick_members=True)
     @commands.bot_has_permissions(kick_members=True)
     @commands.cooldown(1, 2, commands.BucketType.guild)
-    async def kick(self, ctx: Context, members: commands.Greedy[Member], *, reason: str = "None") -> None:
+    async def kick(self, ctx, members: commands.Greedy[Member], *, reason="None"):
         embed = Embed(title="Kicked.", colour=ctx.__randcolor__())
-        embed.add_field(
-            name="Kicked By:", value=f"{ctx.author} ({ctx.author.id})", inline=True
-        )
+        embed.add_field(name="Kicked By:", value=f"{ctx.author} ({ctx.author.id})", inline=True)
         embed.add_field(name="Reason:", value=reason, inline=False)
         embed.set_thumbnail(url=ctx.guild.icon_url)
 
@@ -45,11 +43,9 @@ class MemberCog(commands.Cog):
                         reason=f"Kicked By: {ctx.author}({ctx.author.id}) | Reason: {reason}",
                     )
             except HTTPException:
-                await ctx.send(
-                    desc=f"I couldn't kick {curr_member}.", reaction="\U0000274c"
-                )
+                raise commands.CommandError(f"I'm unable to kick {curr_member}.")
             else:
-                await ctx.send(desc="They're gone \U0001f44c", reaction="\U00002705")
+                await ctx.send(desc=f"They're gone {ctx.reactions.get('ok')}", reaction=ctx.reactions.get("check"))
         else:
             raise commands.BadArgument("No user(s) were provided to kick.")
 
@@ -58,8 +54,7 @@ class MemberCog(commands.Cog):
     @commands.has_permissions(ban_members=True)
     @commands.bot_has_permissions(ban_members=True)
     @commands.cooldown(1, 2, commands.BucketType.guild)
-    async def ban(self, ctx: Context, users: commands.Greedy[Union[Member, User, int]], *, rsn: str = "None") -> None:
-        # Check if `users` is a list of Snowflake IDs, if so, change them all to Snowflakes.
+    async def ban(self, ctx, users: commands.Greedy[Union[Member, User, int]], *, rsn="None"):
         if isinstance(users, list):
             for user_ in range(len(users)):
                 if isinstance(users[user_], int):
@@ -68,9 +63,7 @@ class MemberCog(commands.Cog):
             users = Snowflake(id=users)
 
         embed = Embed(title=f"Banned from '{ctx.guild.name}'.", colour=ctx.__randcolor__())
-        embed.add_field(
-            name="Banned By:", value=f"{ctx.author} ({ctx.author.id})", inline=True
-        )
+        embed.add_field(name="Banned By:", value=f"{ctx.author} ({ctx.author.id})", inline=True)
         embed.add_field(name="Reason:", value=rsn, inline=False)
         embed.set_thumbnail(url=ctx.guild.icon_url)
 
@@ -86,12 +79,8 @@ class MemberCog(commands.Cog):
             if isinstance(curr_user, Snowflake):
                 curr_user = curr_user.id
 
-            await ctx.send(
-                desc=f"I couldn't ban {str(curr_user)}. Either they don't exist or they're more powerful than me.",
-                reaction="\U0000274c",
-            )
+            raise commands.CommandError(f"I'm unable to ban {curr_user}.")
         else:
-            # An attempt to find external shared guilds with a Snowflake in order to send them a ban notification.
             for user_ in users:
                 if isinstance(user_, Snowflake):
                     try:
@@ -104,14 +93,14 @@ class MemberCog(commands.Cog):
                     except Forbidden:
                         pass
 
-            await ctx.send(desc=f"They're gone \U0001f44c", reaction="\U00002705")
+            await ctx.send(desc=f"They're gone {ctx.reactions.get('ok')}", reaction=ctx.reactions.get("check"))
 
     @commands.group(invoke_without_command=True)
     @commands.guild_only()
     @commands.has_permissions(manage_messages=True)
     @commands.bot_has_permissions(manage_messages=True, manage_roles=True)
     @commands.cooldown(1, 2, commands.BucketType.guild)
-    async def mute(self, ctx: Context, members: commands.Greedy[Member], *, reason: str = "None") -> None:
+    async def mute(self, ctx, members: commands.Greedy[Member], *, reason="None"):
         failures = 0
         mute_metadata = await self.client.db.fetchrow(
             """
@@ -170,7 +159,7 @@ class MemberCog(commands.Cog):
             )
 
         if not members:
-            await ctx.send(desc="Didn't get any members to mute.")
+            raise commands.BadArgument("No user(s) were provided to mute.")
         else:
             for member in members:
                 roles_excluding_everyone = \
@@ -200,20 +189,20 @@ class MemberCog(commands.Cog):
                     json.dumps(mute_metadata)
                 )
 
-            msg: str = "They're muted \U0001f44c"
+            msg = f"They're muted {ctx.reactions.get('ok')}"
             if failures:
                 msg += f", but due to permission issues, they're still unmuted in {failures} channels."
 
-            await ctx.send(desc=msg, reaction="\U00002705")
+            await ctx.send(desc=msg, reaction=ctx.reactions.get("check"))
 
     @commands.command()
     @commands.guild_only()
     @commands.has_permissions(manage_messages=True)
     @commands.bot_has_permissions(manage_messages=True, manage_roles=True)
     @commands.cooldown(1, 2, commands.BucketType.guild)
-    async def unmute(self, ctx: Context, members: commands.Greedy[Member], *, reason: str = "None") -> None:
-        pmr_roles_for_each = dict()
-        mute_metadata: asyncpg.Record = await self.client.db.fetchrow(
+    async def unmute(self, ctx, members: commands.Greedy[Member], *, reason="None"):
+        pmr_roles_for_each = {}
+        mute_metadata = await self.client.db.fetchrow(
             """
             SELECT (mute_metadata)
             FROM guilds
@@ -228,10 +217,9 @@ class MemberCog(commands.Cog):
             mute_metadata = json.loads(mute_metadata)
 
         if not mute_metadata or not mute_metadata["mute_role_id"]:
-            await ctx.send(desc="There is no mute role for this server. Mute a member to create one automatically.")
-            return
+            raise commands.CommandError("There is no mute metadata for this server. Mute someone first.")
 
-        if members or any(member.bot for member in members):
+        if members or any(member for member in members if not member.bot):
             for member in members:
                 try:
                     pmr_for_member = mute_metadata["muted_members"][str(member.id)]["pre_mute_roles"]
@@ -269,13 +257,13 @@ class MemberCog(commands.Cog):
 
             await ctx.send(desc="They're unmuted \U0001f44c", reaction="\U00002705")
         else:
-            await ctx.send(desc="No member(s) to unmute.")
+            raise commands.BadArgument("No member(s) to unmute")
 
     @mute.command()
     @commands.guild_only()
     @commands.has_permissions(manage_messages=True)
     @commands.bot_has_permissions(manage_messages=True)
-    async def info(self, ctx: Context, member: Member) -> None:
+    async def info(self, ctx, member: Member):
         data = await self.client.db.fetchrow(
             """
             SELECT mute_metadata
@@ -286,7 +274,7 @@ class MemberCog(commands.Cog):
         )
 
         if not data or data["mute_metadata"] is None:
-            await ctx.send(desc="There is no mute metadata for this guild. Mute someone first.")
+            raise commands.CommandError("There is no mute metadata for this server. Mute someone first.")
         else:
             data = json.loads(data["mute_metadata"])
 
@@ -302,8 +290,8 @@ class MemberCog(commands.Cog):
                 info_embed.add_field(name="Reason:", value=muted_for)
                 info_embed.set_thumbnail(url=member.avatar_url)
 
-                await ctx.send(embed=info_embed)
+                await ctx.send(embed=info_embed, reaction=ctx.reactions.get("check"))
 
 
-def setup(client: commands.Bot) -> None:
+def setup(client):
     client.add_cog(MemberCog(client))
