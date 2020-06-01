@@ -10,13 +10,14 @@ from ftg.extensions.utils.context import Context
 
 
 class Ftg(commands.Bot):
+    """Main bot class."""
 
-    __slots__ = ("session", "_cache", "_url", "app_info", "db")
+    __slots__ = ("session", "deleted_message_cache", "cache", "_url", "app_info", "db")
 
     def __init__(self, **options):
         super().__init__(command_prefix=self.get_prefix_, **options)
         self.session = aiohttp.ClientSession()
-        self._cache = {"prefix": {}}
+        self.cache = {"prefix": {}, "messages": {}}
         self.app_info = None
         self._url = []
 
@@ -55,15 +56,15 @@ class Ftg(commands.Bot):
             for guild in guild_entries:
                 guild = guild["row"]
                 if guild[1]:
-                    self._cache["prefix"][guild[0]] = guild[1]
+                    self.cache["prefix"][guild[0]] = guild[1]
 
         super().run(token, **options)
 
     async def get_prefix_(self, bot, message):
-        if not self._cache["prefix"].get(message.guild.id):
-            self._cache["prefix"][message.guild.id] = "gn "
+        if not self.cache["prefix"].get(message.guild.id):
+            self.cache["prefix"][message.guild.id] = "gn "
 
-        return commands.when_mentioned_or(self._cache["prefix"][message.guild.id])(bot, message)
+        return commands.when_mentioned_or(self.cache["prefix"][message.guild.id])(bot, message)
 
     async def close(self):
         await self.db.close()
