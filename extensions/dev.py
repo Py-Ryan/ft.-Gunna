@@ -9,6 +9,7 @@ from discord.ext import commands
 
 
 class EvalWarning(Exception):
+    """Runtime Warnings need to be handled specially, this is how differentiation is achieved."""
 
     __slots__ = "message"
 
@@ -22,6 +23,7 @@ class EvalWarning(Exception):
 
 # noinspection PyBroadException
 class DevCog(commands.Cog):
+    """Extension designated for owner-only commands."""
 
     __slots__ = "client"
 
@@ -31,6 +33,8 @@ class DevCog(commands.Cog):
     @commands.command()
     @commands.is_owner()
     async def shutdown(self, ctx):
+        """Shut the bot down."""
+
         await ctx.send(desc=f"You sure, {ctx.author}?")
         resp = await self.client.wait_for("message", check=lambda msg: msg.author == ctx.author)
 
@@ -43,6 +47,8 @@ class DevCog(commands.Cog):
     @commands.command()
     @commands.is_owner()
     async def reload(self, ctx, ext_name):
+        """Reload an extension."""
+
         try:
             self.client.reload_extension(f"extensions.{ext_name}")
             await ctx.send(desc=f"Successfully reloaded the {ext_name} extension! \U0001f389")
@@ -53,6 +59,8 @@ class DevCog(commands.Cog):
     @commands.command()
     @commands.is_owner()
     async def eval(self, ctx, *, code):
+        """Evaluate code."""
+
         environment = {
             "commands": commands,
             "client": self.client,
@@ -61,8 +69,7 @@ class DevCog(commands.Cog):
         }
         std = io.StringIO()
 
-        environment.update(globals())
-        environment.update(locals())
+        environment |= {**globals(), **locals()}
 
         if code.startswith("```") and code.endswith("```"):
             code = "\n".join(code.split("\n")[1:-1])
@@ -71,13 +78,10 @@ class DevCog(commands.Cog):
 f"""
 async def _eval():
     ret = None
-    try:
-        with contextlib.redirect_stdout(std) as std_:
-{textwrap.indent(code, '            ')}
-{textwrap.indent("ret = std_", '            ')}
-    finally:
-        environment.update(locals())
-    
+    with contextlib.redirect_stdout(std) as std_:
+{textwrap.indent(code, '        ')}
+{textwrap.indent("ret = std_", '        ')}
+        
     return ret
 """
 

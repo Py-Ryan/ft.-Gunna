@@ -16,6 +16,7 @@ from discord import (
 
 
 class MemberCog(commands.Cog):
+    """Extension designated for commands that interact with members."""
 
     __slots__ = "client"
 
@@ -28,6 +29,8 @@ class MemberCog(commands.Cog):
     @commands.bot_has_permissions(kick_members=True)
     @commands.cooldown(1, 2, commands.BucketType.guild)
     async def kick(self, ctx, members: commands.Greedy[Member], *, reason="None"):
+        """Kick a member(s) from a guild."""
+
         embed = Embed(title="Kicked.", colour=ctx.__randcolor__())
         embed.add_field(name="Kicked By:", value=f"{ctx.author} ({ctx.author.id})", inline=True)
         embed.add_field(name="Reason:", value=reason, inline=False)
@@ -55,6 +58,8 @@ class MemberCog(commands.Cog):
     @commands.bot_has_permissions(ban_members=True)
     @commands.cooldown(1, 2, commands.BucketType.guild)
     async def ban(self, ctx, users: commands.Greedy[Union[Member, User, int]], *, rsn="None"):
+        """Ban a user(s) from a guild. Supports hackbanning by ID."""
+
         if isinstance(users, list):
             for user_ in range(len(users)):
                 if isinstance(users[user_], int):
@@ -101,6 +106,8 @@ class MemberCog(commands.Cog):
     @commands.bot_has_permissions(manage_messages=True, manage_roles=True)
     @commands.cooldown(1, 2, commands.BucketType.guild)
     async def mute(self, ctx, members: commands.Greedy[Member], *, reason="None"):
+        """Mute member(s) in the guild."""
+
         failures = 0
         mute_metadata = await self.client.db.fetchrow(
             """
@@ -201,6 +208,8 @@ class MemberCog(commands.Cog):
     @commands.bot_has_permissions(manage_messages=True, manage_roles=True)
     @commands.cooldown(1, 2, commands.BucketType.guild)
     async def unmute(self, ctx, members: commands.Greedy[Member], *, reason="None"):
+        """Unmute member(s) in the guild."""
+
         pmr_roles_for_each = {}
         mute_metadata = await self.client.db.fetchrow(
             """
@@ -264,6 +273,8 @@ class MemberCog(commands.Cog):
     @commands.has_permissions(manage_messages=True)
     @commands.bot_has_permissions(manage_messages=True)
     async def info(self, ctx, member: Member):
+        """Show info regarding a mute on a member."""
+
         data = await self.client.db.fetchrow(
             """
             SELECT mute_metadata
@@ -273,9 +284,7 @@ class MemberCog(commands.Cog):
             ctx.guild.id
         )
 
-        if not data or data["mute_metadata"] is None:
-            raise commands.CommandError("There is no mute metadata for this server. Mute someone first.")
-        else:
+        if data or data["mute_metadata"]:
             data = json.loads(data["mute_metadata"])
 
             if str(member.id) in data["muted_members"]:
@@ -291,6 +300,8 @@ class MemberCog(commands.Cog):
                 info_embed.set_thumbnail(url=member.avatar_url)
 
                 await ctx.send(embed=info_embed, reaction=ctx.reactions.get("check"))
+        else:
+            raise commands.CommandError("There is no mute metadata for this server. Mute someone first.")
 
 
 def setup(client):

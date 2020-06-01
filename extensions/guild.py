@@ -2,6 +2,7 @@ from discord.ext import commands
 
 
 class GuildCog(commands.Cog):
+    """Extension designated for commands that interact with the guild."""
 
     __slots__ = "client"
 
@@ -13,6 +14,8 @@ class GuildCog(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     @commands.cooldown(1, 2, commands.BucketType.guild)
     async def leave(self, ctx):
+        """Makes me leave the guild."""
+
         await ctx.send(desc=f"You sure you want me to leave, {ctx.author}?")
         confirmation = await self.client.wait_for("message", check=lambda msg: msg.author == ctx.author)
 
@@ -26,6 +29,8 @@ class GuildCog(commands.Cog):
     @commands.cooldown(1, 2, commands.BucketType.guild)
     @commands.check(lambda x: x.author.id == 700091773695033505 or x.author.guild_permissions.manage_guild)
     async def prefix(self, ctx, new_prefix):
+        """Edit the guild prefix."""
+
         await ctx.send(desc=f"Are you sure you wanna make the new guild prefix '{new_prefix}'")
 
         response = await self.client.wait_for("message", check=lambda m: m.author == ctx.author)
@@ -43,7 +48,7 @@ class GuildCog(commands.Cog):
                 new_prefix
             )
 
-            self.client._cache["prefix"][ctx.guild.id] = new_prefix
+            self.client.cache["prefix"][ctx.guild.id] = new_prefix
             await ctx.send(desc="Alright, the new guild prefix is set.", reaction=ctx.reactions.get("check"))
         else:
             await ctx.send(desc="Alright, I didn't change anything.")
